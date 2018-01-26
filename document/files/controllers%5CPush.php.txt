@@ -1,0 +1,44 @@
+<?php
+
+/**
+ * Push.php.
+ * User: Administrator
+ * Date: 2017/9/18 0018
+ * Time: 10:35
+ */
+class PushController extends Yaf_Controller_Abstract
+{
+    /**
+     * 别名推送
+     */
+    public function sendToAliasAction(){
+        if(!Admin_Object::isAdmin()){
+            echo Common_Request::responseByArray(Err_Map::get(7001));
+            return FALSE;
+        }
+
+        $cid = Common_Request::postRequest('cid', "");
+        $title = Common_Request::postRequest('title', "");
+        $msg = Common_Request::postRequest('msg', "");
+        if(empty($cid) || empty($title) || empty($msg)){
+            echo Common_Request::responseByArray(Err_Map::get(7002));
+            return FALSE;
+        }
+
+        $model = new PushModel();
+        if($model->sendToAlias($cid, $title, $msg)){
+            echo Common_Request::responseByArray(Err_Map::get(0));
+        }else{
+            echo Common_Request::response($model->errno, $model->errmsg);
+        }
+
+        return FALSE;
+    }
+
+    /**
+     * 标签推送
+     */
+    public function broadcastAction(){
+
+    }
+}

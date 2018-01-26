@@ -1,0 +1,90 @@
+<?php
+
+/**
+ * Request.php.
+ * User: Administrator
+ * Date: 2017/9/19 0019
+ * Time: 15:27
+ * Desc: http 参数获取以及响应
+ */
+class Common_Request
+{
+    /**
+     * 获取HTTP请求参数
+     * @param $key  参数key
+     * @param null $default 参数默认值
+     * @param null $type    请求方式
+     * @return null|string
+     */
+    public static function request($key, $default = null, $type = null){
+        if($type == 'get'){
+            $result = isset($_GET[ $key ]) ? trim($_GET[ $key ]) : null;
+        }elseif($type == 'post'){
+            $result = isset($_POST[ $key ]) ? trim($_POST[ $key ]) : null;
+        }else{
+            $result = isset($_REQUEST[ $key ]) ? trim($_REQUEST[ $key ]) : null;
+        }
+
+        if($default != null && $result == null){
+            $result = $default;
+        }
+
+        return $result;
+    }
+
+    /**
+     * 获取HTTP Get请求参数
+     * @param $key  参数key
+     * @param null $default 参数默认值
+     * @return null|string
+     */
+    public static function getRequest($key ,$default = null){
+        return self::request($key, $default, 'get');
+    }
+
+    /**
+     * 获取HTTP Post请求参数
+     * @param $key  参数key
+     * @param null $default 参数默认值
+     * @return null|string
+     */
+    public static function postRequest($key, $default = null){
+        return self::request($key, $default, 'post');
+    }
+
+    /**
+     * 组装响应内容
+     * @param $errno    响应码
+     * @param $errmsg   响应内容
+     * @param array $data   附加数据
+     * @return string
+     */
+    public static function response($errno, $errmsg, $data = array()){
+        $rep = array(
+                'errno'=>$errno,
+                'errmsg'=>$errmsg
+        );
+
+        if(!empty($data)){
+            $rep['data'] = $data;
+        }
+
+        return json_encode($rep, JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * 组装响应内容
+     * @param $msgArr   响应码信息数组
+     * @param array $data   附加数据
+     * @return string
+     */
+    public static function responseByArray($msgArr, $data = array()){
+        $rep = $msgArr;
+
+        if(!empty($data)){
+            $rep['data'] = $data;
+        }
+
+        return json_encode($rep, JSON_UNESCAPED_UNICODE);
+    }
+}

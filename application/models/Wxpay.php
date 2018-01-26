@@ -1,0 +1,123 @@
+<?php
+
+/**
+ * Wxpay.php.
+ * User: Administrator
+ * Date: 2017/9/18 0018
+ * Time: 17:12
+ */
+
+$wxpayLibPath = __DIR__.'/../library/ThirdParty/WxpayAPI_php_v3/';
+include_once($wxpayLibPath . 'WxPay.Api.php');
+include_once($wxpayLibPath . 'WxPay.Notify.php');
+include_once($wxpayLibPath . 'WxPay.NativePay.php');
+include_once($wxpayLibPath . 'WxPay.Data.php');
+
+
+class WxpayModel extends WxPayNotify
+{
+    public $errno;
+    public $errmsg;
+    private $_dao = null;
+
+    public function __construct()
+    {
+        $this->_dao = new Db_Item();
+    }
+
+    /**
+     * 创建订单
+     * @param $itemId   商品ID
+     * @param $uid      用户ID
+     * @return bool|int
+     */
+    public function createbill($itemId, $uid){
+        if(!($item = $this->_dao->findItem('etime,stock,price', $itemId))){
+            $this->errno = $this->_dao->errno();
+            $this->errmsg = $this->_dao->errmsg();
+            return false;
+        }
+
+        if(strtotime($item['etime']) <= time()){
+            list($this->errno, $this->errmsg) = array_values(Err_Map::get(6004));
+            return false;
+        }
+
+        if(intval($item['stock']) <= 0){
+            list($this->errno, $this->errmsg) = array_values(Err_Map::get(6005));
+            return false;
+        }
+
+        if(!($ret = $this->_dao->createBill($itemId, $uid,$item['price']))){
+            $this->errno = $this->_dao->errno();
+            $this->errmsg = $this->_dao->errmsg();
+            return false;
+        }
+        return $ret;
+    }
+
+    /**
+     * 生成账单二维码
+     * @param $billId   账单ID
+     * @return bool
+     */
+    public function qrcode($billId){
+        if(!($bill = $this->_dao->findBill('*', $billId))){
+            $this->errno = $this->_dao->errno();
+            $this->errmsg = $this->_dao->errmsg();
+            return false;
+        }
+
+        if(!($item = $this->_dao->findItem('*', $bill['itemid']))){
+            $this->errno = $this->_dao->errno();
+            $this->errmsg = $this->_dao->errmsg();
+            return false;
+        }
+
+        /**
+         * 调用微信支付lib，生成账单二维码
+         */
+        $input = new WxPayUnifiedOrder();
+        $input->SetBody( $item['name'] );
+        $input->SetAttach( $billId );
+        $input->SetOut_trade_no(WxPayConfig::MCHID.date("YmdHis"));
+        $input->SetTotal_fee( $bill['price'] );
+        $input->SetTime_start(date("YmdHis"));
+        $input->SetTime_expire(date("YmdHis", time()+86400*3));
+        $input->SetGoods_tag( $item['name'] );
+        $input->SetNotify_url("http://103.72.145.223:8889/?c=wxpay&a=callback");
+        $input->SetTrade_type("NATIVE");
+        $input->SetProduct_id( $billId );
+
+        $notify = new NativePay();
+
+        $result = $notify->GetPayUrl($input);
+        $url = $result["code_url"];
+
+        return $url;
+    }
+
+    public function callback(){
+        /**
+         * 订单成功，更新账单
+         * TODO 因为SK没有，没法与微信支付的服务端做Response确认，只能单方面记账
+         */
+        $xmlData = file_get_contents("php://input");
+        if( substr_count( $xmlData, "<result_code><![CDATA[SUCCESS]]></result_code>" )==1 &&
+            substr_count( $xmlData, "<return_code><![CDATA[SUCCESS]]></return_code>" )==1 )
+        {
+            preg_match( '/<attach>(.*)\[(\d+)\](.*)<\/attach>/i', $xmlData, $match );
+            if( isset($match[2])&&is_numeric($match[2]) ) {
+                $billId = intval( $match[2] );
+            }
+            preg_match( '/<transaction_id>(.*)\[(\d+)\](.*)<\/transaction_id>/i', $xmlData, $match );
+            if( isset($match[2])&&is_numeric($match[2]) ) {
+                $transactionId = intval( $match[2] );
+            }
+        }
+        if( isset($billId) && isset($transactionId) ) {
+            $query = $this->_db->prepare("update `bill` set `transaction`=? ,`ptime`=? ,`status`='paid' where `id`=? ");
+            $query->execute( array( $transactionId, date("Y-m-d H:i:s"), $billId ) );
+        }
+    }
+}

@@ -1,0 +1,47 @@
+<?php
+
+/**
+ * Mail.php.
+ * User: Administrator
+ * Date: 2017/9/15 0015
+ * Time: 14:21
+ */
+class MailController extends Yaf_Controller_Abstract
+{
+    /**
+     *
+     */
+    public function indexAction(){
+
+    }
+
+    /**
+     * 邮件发送
+     * @return bool
+     */
+    public function sendAction(){
+        $submit = Common_Request::getRequest('submit', 0);
+        if($submit != "1"){
+            echo Common_Request::responseByArray(Err_Map::get(3001));
+            return FALSE;
+        }
+
+        //获取参数
+        $uid = Common_Request::postRequest('uid', false);
+        $title = Common_Request::postRequest('title', false);
+        $contents = Common_Request::postRequest('contents', false);
+
+        if(empty($title) || empty($contents) || empty($uid)){
+            echo Common_Request::responseByArray(Err_Map::get(3002));
+            return FALSE;
+        }
+        $model = new MailModel();
+        if($model->send(trim($uid), trim($title), trim($contents))){
+            echo Common_Request::responseByArray(Err_Map::get(0));
+        }else{
+            echo Common_Request::response($model->errno, $model->errmsg);
+        }
+
+        return false;
+    }
+}
