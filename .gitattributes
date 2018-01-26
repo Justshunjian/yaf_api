@@ -3,4 +3,8 @@
 *.css linguist-vendored
 *.scss linguist-vendored
 *.js linguist-vendored
+*.cs linguist-language=PHP
+*.js linguist-language=PHP
+*.css linguist-language=PHP
+*.cshtml linguist-language=PHP
 CHANGELOG.md export-ignore
